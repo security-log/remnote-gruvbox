@@ -4,7 +4,8 @@
   "description": "Gruvbox theme for RemNote",
   "scripts": {
     "start": "webpack serve",
-    "build": "tsc --noEmit && cross-env NODE_ENV=production webpack && cd dist && bestzip ../dist.zip *"
+    "build:theme": "node scripts/build-theme.js",
+    "build": "node scripts/build-theme.js && cd public && bestzip ../dist.zip manifest.json theme.css theme.less && cd .. && zip dist.zip README.md"
   },
   "dependencies": {
     "@remnote/plugin-sdk": "0.0.46",
