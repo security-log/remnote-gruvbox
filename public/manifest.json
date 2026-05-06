@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "gruvbox",
+  "name": "Gruvbox",
+  "author": "rubacava",
+  "repoUrl": "https://github.com/rubacava/remnote-gruvbox",
+  "enableOnMobile": true,
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "theme": ["light", "dark"],
+  "description": "🪵 Retro groove colors for your notes — dark and light variants with configurable accent",
+  "requestNative": false,
+  "requiredScopes": [
+    {
+      "type": "All",
+      "level": "Read"
+    }
+  ]
+}
