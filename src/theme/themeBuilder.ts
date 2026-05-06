@@ -5,148 +5,144 @@ import tinycolor from "tinycolor2";
 import { ColorDefinition, CustomColors } from "../types";
 import { extractColorComponents, hasKey, normalizeHexCode } from "../utils/themeUtils";
 
-// Gruvbox palette — all hex values
+// Gruvbox palette sourced from https://github.com/morhetz/gruvbox
+//
+// Naming convention used here → official Gruvbox name:
+//   base     → dark0 / light0      (main background)
+//   mantle   → dark0_hard / light0_soft  (secondary background)
+//   crust    → dark0_soft / light1  (tertiary / sidebar background)
+//   surface0 → dark1 / light1
+//   surface1 → dark2 / light2
+//   surface2 → dark3 / light3
+//   overlay0 → dark4 / light4
+//   overlay1 → gray_245 (#928374)
+//   overlay2 → light3 / dark3
+//   subtext0 → light2 / dark2
+//   subtext1 → light1 / dark1
+//   text     → light1 / dark0
+//   Accents (dark)  → bright_*   (e.g. bright_yellow #fabd2f)
+//   Accents (light) → neutral_*  (e.g. neutral_yellow #d79921)
+//
+// Note: morhetz defines 3 bg levels (hard/medium/soft). We map 4 levels
+// (base/mantle/crust + surfaces), so for dark/dark-hard the crust value
+// reuses dark0_hard — the official darkest bg color.
+
+const DARK_ACCENTS = {
+  red:    "#fb4934", // bright_red
+  orange: "#fe8019", // bright_orange
+  yellow: "#fabd2f", // bright_yellow
+  green:  "#b8bb26", // bright_green
+  blue:   "#83a598", // bright_blue
+  purple: "#d3869b", // bright_purple
+  aqua:   "#8ec07c", // bright_aqua
+  peach:  "#fe8019", // alias → bright_orange
+  mauve:  "#d3869b", // alias → bright_purple
+};
+
+const LIGHT_ACCENTS = {
+  red:    "#cc241d", // neutral_red
+  orange: "#d65d0e", // neutral_orange
+  yellow: "#d79921", // neutral_yellow
+  green:  "#98971a", // neutral_green
+  blue:   "#458588", // neutral_blue
+  purple: "#b16286", // neutral_purple
+  aqua:   "#689d6a", // neutral_aqua
+  peach:  "#d65d0e", // alias → neutral_orange
+  mauve:  "#b16286", // alias → neutral_purple
+};
+
 const gruvboxPalettes: Record<string, Record<string, string>> = {
   // ── Dark variants ──────────────────────────────────────────────────────────
   dark: {
-    base:     "#282828",
-    mantle:   "#1d2021",
-    crust:    "#141617",
-    surface0: "#3c3836",
-    surface1: "#504945",
-    surface2: "#665c54",
-    overlay0: "#7c6f64",
-    overlay1: "#a89984",
-    overlay2: "#bdae93",
-    subtext0: "#d5c4a1",
-    subtext1: "#ebdbb2",
-    text:     "#ebdbb2",
-    red:      "#fb4934",
-    orange:   "#fe8019",
-    yellow:   "#fabd2f",
-    green:    "#b8bb26",
-    blue:     "#83a598",
-    purple:   "#d3869b",
-    aqua:     "#8ec07c",
-    // aliases used by theme.less (peach → orange, mauve → purple)
-    peach:    "#fe8019",
-    mauve:    "#d3869b",
+    base:     "#282828", // dark0
+    mantle:   "#1d2021", // dark0_hard
+    crust:    "#1d2021", // dark0_hard (morhetz has no darker official bg)
+    surface0: "#3c3836", // dark1
+    surface1: "#504945", // dark2
+    surface2: "#665c54", // dark3
+    overlay0: "#7c6f64", // dark4
+    overlay1: "#928374", // gray_245
+    overlay2: "#bdae93", // light3
+    subtext0: "#d5c4a1", // light2
+    subtext1: "#ebdbb2", // light1
+    text:     "#ebdbb2", // light1
+    ...DARK_ACCENTS,
   },
   "dark-hard": {
-    base:     "#1d2021",
-    mantle:   "#141617",
-    crust:    "#0d0f0f",
-    surface0: "#3c3836",
-    surface1: "#504945",
-    surface2: "#665c54",
-    overlay0: "#7c6f64",
-    overlay1: "#a89984",
-    overlay2: "#bdae93",
-    subtext0: "#d5c4a1",
-    subtext1: "#ebdbb2",
-    text:     "#ebdbb2",
-    red:      "#fb4934",
-    orange:   "#fe8019",
-    yellow:   "#fabd2f",
-    green:    "#b8bb26",
-    blue:     "#83a598",
-    purple:   "#d3869b",
-    aqua:     "#8ec07c",
-    peach:    "#fe8019",
-    mauve:    "#d3869b",
+    base:     "#1d2021", // dark0_hard
+    mantle:   "#1d2021", // dark0_hard (no official darker level)
+    crust:    "#1d2021", // dark0_hard
+    surface0: "#3c3836", // dark1
+    surface1: "#504945", // dark2
+    surface2: "#665c54", // dark3
+    overlay0: "#7c6f64", // dark4
+    overlay1: "#928374", // gray_245
+    overlay2: "#bdae93", // light3
+    subtext0: "#d5c4a1", // light2
+    subtext1: "#ebdbb2", // light1
+    text:     "#ebdbb2", // light1
+    ...DARK_ACCENTS,
   },
   "dark-soft": {
-    base:     "#32302f",
-    mantle:   "#282828",
-    crust:    "#1d2021",
-    surface0: "#3c3836",
-    surface1: "#504945",
-    surface2: "#665c54",
-    overlay0: "#7c6f64",
-    overlay1: "#a89984",
-    overlay2: "#bdae93",
-    subtext0: "#d5c4a1",
-    subtext1: "#ebdbb2",
-    text:     "#ebdbb2",
-    red:      "#fb4934",
-    orange:   "#fe8019",
-    yellow:   "#fabd2f",
-    green:    "#b8bb26",
-    blue:     "#83a598",
-    purple:   "#d3869b",
-    aqua:     "#8ec07c",
-    peach:    "#fe8019",
-    mauve:    "#d3869b",
+    base:     "#32302f", // dark0_soft
+    mantle:   "#282828", // dark0
+    crust:    "#1d2021", // dark0_hard
+    surface0: "#3c3836", // dark1
+    surface1: "#504945", // dark2
+    surface2: "#665c54", // dark3
+    overlay0: "#7c6f64", // dark4
+    overlay1: "#928374", // gray_245
+    overlay2: "#bdae93", // light3
+    subtext0: "#d5c4a1", // light2
+    subtext1: "#ebdbb2", // light1
+    text:     "#ebdbb2", // light1
+    ...DARK_ACCENTS,
   },
   // ── Light variants ─────────────────────────────────────────────────────────
   light: {
-    base:     "#fbf1c7",
-    mantle:   "#f9f5d7",
-    crust:    "#f2e5bc",
-    surface0: "#ebdbb2",
-    surface1: "#d5c4a1",
-    surface2: "#bdae93",
-    overlay0: "#a89984",
-    overlay1: "#7c6f64",
-    overlay2: "#665c54",
-    subtext0: "#504945",
-    subtext1: "#3c3836",
-    text:     "#282828",
-    red:      "#cc241d",
-    orange:   "#d65d0e",
-    yellow:   "#d79921",
-    green:    "#98971a",
-    blue:     "#458588",
-    purple:   "#b16286",
-    aqua:     "#689d6a",
-    peach:    "#d65d0e",
-    mauve:    "#b16286",
+    base:     "#fbf1c7", // light0
+    mantle:   "#f2e5bc", // light0_soft  (secondary bg, slightly warmer)
+    crust:    "#ebdbb2", // light1       (sidebar, clearly distinct)
+    surface0: "#d5c4a1", // light2
+    surface1: "#bdae93", // light3
+    surface2: "#a89984", // light4
+    overlay0: "#928374", // gray_245
+    overlay1: "#7c6f64", // dark4
+    overlay2: "#665c54", // dark3
+    subtext0: "#504945", // dark2
+    subtext1: "#3c3836", // dark1
+    text:     "#282828", // dark0
+    ...LIGHT_ACCENTS,
   },
   "light-hard": {
-    base:     "#f9f5d7",
-    mantle:   "#f2e5bc",
-    crust:    "#ebdbb2",
-    surface0: "#d5c4a1",
-    surface1: "#bdae93",
-    surface2: "#a89984",
-    overlay0: "#7c6f64",
-    overlay1: "#665c54",
-    overlay2: "#504945",
-    subtext0: "#3c3836",
-    subtext1: "#282828",
-    text:     "#1d2021",
-    red:      "#cc241d",
-    orange:   "#d65d0e",
-    yellow:   "#d79921",
-    green:    "#98971a",
-    blue:     "#458588",
-    purple:   "#b16286",
-    aqua:     "#689d6a",
-    peach:    "#d65d0e",
-    mauve:    "#b16286",
+    base:     "#f9f5d7", // light0_hard
+    mantle:   "#f2e5bc", // light0_soft
+    crust:    "#ebdbb2", // light1
+    surface0: "#d5c4a1", // light2
+    surface1: "#bdae93", // light3
+    surface2: "#a89984", // light4
+    overlay0: "#928374", // gray_245
+    overlay1: "#7c6f64", // dark4
+    overlay2: "#665c54", // dark3
+    subtext0: "#504945", // dark2
+    subtext1: "#3c3836", // dark1
+    text:     "#282828", // dark0
+    ...LIGHT_ACCENTS,
   },
   "light-soft": {
-    base:     "#f2e5bc",
-    mantle:   "#fbf1c7",
-    crust:    "#f9f5d7",
-    surface0: "#ebdbb2",
-    surface1: "#d5c4a1",
-    surface2: "#bdae93",
-    overlay0: "#a89984",
-    overlay1: "#7c6f64",
-    overlay2: "#665c54",
-    subtext0: "#504945",
-    subtext1: "#3c3836",
-    text:     "#282828",
-    red:      "#cc241d",
-    orange:   "#d65d0e",
-    yellow:   "#d79921",
-    green:    "#98971a",
-    blue:     "#458588",
-    purple:   "#b16286",
-    aqua:     "#689d6a",
-    peach:    "#d65d0e",
-    mauve:    "#b16286",
+    base:     "#f2e5bc", // light0_soft
+    mantle:   "#fbf1c7", // light0      (warmer secondary)
+    crust:    "#ebdbb2", // light1      (sidebar)
+    surface0: "#d5c4a1", // light2
+    surface1: "#bdae93", // light3
+    surface2: "#a89984", // light4
+    overlay0: "#928374", // gray_245
+    overlay1: "#7c6f64", // dark4
+    overlay2: "#665c54", // dark3
+    subtext0: "#504945", // dark2
+    subtext1: "#3c3836", // dark1
+    text:     "#282828", // dark0
+    ...LIGHT_ACCENTS,
   },
 };
 
