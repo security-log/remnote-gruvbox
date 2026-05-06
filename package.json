@@ -1,0 +1,42 @@
+{
+  "name": "gruvbox-remnote",
+  "version": "0.0.0",
+  "description": "Gruvbox theme for RemNote",
+  "scripts": {
+    "start": "webpack serve",
+    "build": "tsc --noEmit && cross-env NODE_ENV=production webpack && cd dist && bestzip ../dist.zip *"
+  },
+  "dependencies": {
+    "@remnote/plugin-sdk": "0.0.46",
+    "less": "^4.2.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "tinycolor2": "^1.6.0"
+  },
+  "devDependencies": {
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
+    "@types/less": "^3.0.6",
+    "@types/react": "17.0.2",
+    "@types/react-dom": "17.0.2",
+    "@types/tinycolor2": "^1.4.6",
+    "autoprefixer": "^10.4.20",
+    "bestzip": "^2.2.1",
+    "copy-webpack-plugin": "^12.0.2",
+    "cross-env": "^7.0.3",
+    "css-loader": "^7.1.2",
+    "esbuild-loader": "^4.2.2",
+    "glob": "^10.4.5",
+    "html-webpack-plugin": "^5.6.3",
+    "mini-css-extract-plugin": "^2.9.2",
+    "postcss": "^8.4.49",
+    "postcss-import": "^16.1.0",
+    "postcss-loader": "^8.1.1",
+    "react-refresh": "^0.14.2",
+    "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.2.0"
+  }
+}
