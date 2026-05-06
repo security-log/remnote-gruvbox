@@ -75,6 +75,8 @@ body.dark {
   --rn-colors-gray-30:           #504945;
   --rn-colors-gray-60:           #bdae93;
   --rn-colors-gray-80:           #ebdbb2;
+  --rn-colors-gray-90:           #ebdbb2;
+  --rn-colors-gray-100:          #ebdbb2;
   --rn-clr-background-elevation-10: #282828;
   --rn-clr-background-elevation-50: #3c3836;
   --bg-mint-20:              #8ec07c;
@@ -165,6 +167,8 @@ body.light {
   --rn-colors-gray-30:           #bdae93;
   --rn-colors-gray-60:           #665c54;
   --rn-colors-gray-80:           #282828;
+  --rn-colors-gray-90:           #282828;
+  --rn-colors-gray-100:          #282828;
   --rn-clr-background-elevation-10: #fbf1c7;
   --rn-clr-background-elevation-50: #d5c4a1;
   --bg-mint-20:              #689d6a;
@@ -329,6 +333,20 @@ body.dark .rn-checkbox--unchecked { color: var(--grv-accent) !important; backgro
 /* ── Settings / All Notes ────────────────────────────────────────────────── */
 body.dark .rn-settings  { background: var(--grv-base) !important; }
 body.dark .rn-all-notes { background: var(--grv-base) !important; }
+
+/* ── Folder / document list view ─────────────────────────────────────────── */
+body.dark .rn-folder-page           { background: var(--grv-base) !important; }
+body.dark .rn-document-card         { background: var(--grv-surface0) !important; border-color: var(--grv-surface1) !important; }
+body.dark .rn-document-card__title  { color: var(--grv-text) !important; }
+body.dark .rn-document-card__body   { color: var(--grv-subtext1) !important; }
+body.dark .rn-mosaic-card           { background: var(--grv-surface0) !important; border-color: var(--grv-surface1) !important; }
+body.dark .rn-mosaic-card__title    { color: var(--grv-text) !important; }
+body.dark .rn-tree-node__label      { color: var(--grv-text) !important; }
+body.dark .rn-tree-node             { color: var(--grv-text); }
+body.dark .rn-editor__rem__body__text { color: var(--grv-text) !important; }
+body.dark .rn-rem-text              { color: var(--grv-text); }
+body.dark .rn-document             { color: var(--grv-text); }
+body.dark .rn-editor               { color: var(--grv-text); }
 
 /* ── Queue / Review ──────────────────────────────────────────────────────── */
 body.dark .rn-queue-container   { background: var(--grv-mantle) !important; }
@@ -551,6 +569,20 @@ body.light .rn-checkbox--unchecked { color: var(--grv-accent) !important; backgr
 /* ── Settings / All Notes ────────────────────────────────────────────────── */
 body.light .rn-settings  { background: var(--grv-base) !important; }
 body.light .rn-all-notes { background: var(--grv-base) !important; }
+
+/* ── Folder / document list view ─────────────────────────────────────────── */
+body.light .rn-folder-page           { background: var(--grv-base) !important; }
+body.light .rn-document-card         { background: var(--grv-surface0) !important; border-color: var(--grv-surface1) !important; }
+body.light .rn-document-card__title  { color: var(--grv-text) !important; }
+body.light .rn-document-card__body   { color: var(--grv-subtext1) !important; }
+body.light .rn-mosaic-card           { background: var(--grv-surface0) !important; border-color: var(--grv-surface1) !important; }
+body.light .rn-mosaic-card__title    { color: var(--grv-text) !important; }
+body.light .rn-tree-node__label      { color: var(--grv-text) !important; }
+body.light .rn-tree-node             { color: var(--grv-text); }
+body.light .rn-editor__rem__body__text { color: var(--grv-text) !important; }
+body.light .rn-rem-text              { color: var(--grv-text); }
+body.light .rn-document             { color: var(--grv-text); }
+body.light .rn-editor               { color: var(--grv-text); }
 
 /* ── Queue / Review ──────────────────────────────────────────────────────── */
 body.light .rn-queue-container   { background: var(--grv-mantle) !important; }

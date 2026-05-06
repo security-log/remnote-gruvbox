@@ -133,6 +133,8 @@ function cssVarBlock(bodyClass, palette) {
   lines.push(`  --rn-colors-gray-30:           ${p.surface1};`);
   lines.push(`  --rn-colors-gray-60:           ${p.overlay2};`);
   lines.push(`  --rn-colors-gray-80:           ${p.text};`);
+  lines.push(`  --rn-colors-gray-90:           ${p.text};`);
+  lines.push(`  --rn-colors-gray-100:          ${p.text};`);
   lines.push(`  --rn-clr-background-elevation-10: ${p.base};`);
   lines.push(`  --rn-clr-background-elevation-50: ${p.surface0};`);
   lines.push(`  --bg-mint-20:              ${p.aqua};`);
@@ -313,6 +315,20 @@ body${bodyClass} .rn-checkbox--unchecked { color: ${v("accent")} !important; bac
 /* ── Settings / All Notes ────────────────────────────────────────────────── */
 body${bodyClass} .rn-settings  { background: ${v("base")} !important; }
 body${bodyClass} .rn-all-notes { background: ${v("base")} !important; }
+
+/* ── Folder / document list view ─────────────────────────────────────────── */
+body${bodyClass} .rn-folder-page           { background: ${v("base")} !important; }
+body${bodyClass} .rn-document-card         { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
+body${bodyClass} .rn-document-card__title  { color: ${v("text")} !important; }
+body${bodyClass} .rn-document-card__body   { color: ${v("subtext1")} !important; }
+body${bodyClass} .rn-mosaic-card           { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
+body${bodyClass} .rn-mosaic-card__title    { color: ${v("text")} !important; }
+body${bodyClass} .rn-tree-node__label      { color: ${v("text")} !important; }
+body${bodyClass} .rn-tree-node             { color: ${v("text")}; }
+body${bodyClass} .rn-editor__rem__body__text { color: ${v("text")} !important; }
+body${bodyClass} .rn-rem-text              { color: ${v("text")}; }
+body${bodyClass} .rn-document             { color: ${v("text")}; }
+body${bodyClass} .rn-editor               { color: ${v("text")}; }
 
 /* ── Queue / Review ──────────────────────────────────────────────────────── */
 body${bodyClass} .rn-queue-container   { background: ${v("mantle")} !important; }
