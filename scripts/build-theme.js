@@ -199,7 +199,7 @@ body${bodyClass} .rn-clr-border-accent              { border-color: ${v("accent"
 body${bodyClass} .rn-pane__body          { background: ${v("base")} !important; }
 body${bodyClass} .rn-pane__top-bar       { background: ${v("base")} !important; border-bottom: 1px solid ${v("surface1")} !important; }
 body${bodyClass} .rn-editor              { color: ${v("text")}; }
-body${bodyClass} .rn-editor-container   { background: ${v("base")} !important; border-left: 1px solid ${v("surface1")} !important; border-right: 1px solid ${v("surface1")} !important; }
+body${bodyClass} .rn-editor-container   { background: ${v("base")} !important; }
 body${bodyClass} .rn-document           { color: ${v("text")}; }
 body${bodyClass} .rn-document-wrapper   { background: ${v("base")} !important; }
 body${bodyClass} .rn-sticky-header      { background: ${v("base")} !important; border-bottom: 1px solid ${v("surface1")} !important; }
