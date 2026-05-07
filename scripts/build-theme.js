@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-// Pre-compiles the Gruvbox theme into a static theme.css.
+// Builds theme.css by hardcoding Gruvbox colors directly into every rule,
+// exactly like the Dracula theme does. No CSS custom properties in component
+// rules means no dependency on body.dark/body.light class placement.
 //
-// Architecture:
-//   body.dark  { --grv-*: <dark values>;  }   ← CSS vars, scoped per mode
-//   body.light { --grv-*: <light values>; }
-//   .rn-sidebar { background: var(--grv-crust) !important; }  ← unscoped, always apply
-//
-// Unscoped rules + CSS vars is the same pattern Dracula uses (hardcoded
-// values) but with the flexibility of dark/light support.
+// Dark/light switching is handled by scoping rules under .dark / .light
+// (RemNote toggles one of these classes on a root element).
 
 const fs   = require("fs");
 const path = require("path");
@@ -41,20 +38,9 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function hexToHsl(hex) {
-  let [r, g, b] = hexToRgb(hex).map(v => v / 255);
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0, l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-      case g: h = ((b - r) / d + 2) / 6; break;
-      case b: h = ((r - g) / d + 4) / 6; break;
-    }
-  }
-  return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
+function rgba(hex, alpha) {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function darken(hex, pct) {
@@ -91,309 +77,289 @@ function darken(hex, pct) {
   return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
 }
 
-// ── CSS variable block (scoped to body.dark / body.light) ─────────────────────
+// ── Generate CSS for one palette ───────────────────────────────────────────────
 
-function cssVarBlock(bodyClass, palette) {
-  const accentDark = darken(palette.accent, 20);
-  const lines = [
-    `body${bodyClass} {`,
-    `  color:      ${palette.text};`,
-    `  background: ${palette.base};`,
-  ];
-  for (const [name, hex] of Object.entries(palette)) {
-    const [r, g, b] = hexToRgb(hex);
-    lines.push(`  --grv-${name}:     ${hex};`);
-    lines.push(`  --grv-${name}-rgb: ${r}, ${g}, ${b};`);
-    lines.push(`  --grv-${name}-hsl: ${hexToHsl(hex)};`);
-  }
-  lines.push(`  --grv-accent-dark: ${accentDark};`);
+function themeCSS(p, scope) {
+  const s          = sel => `${scope} ${sel}`;
+  const accentDark = darken(p.accent, 20);
+  const checkboxAccent = p.accent.replace("#", "%23");
 
-  // RemNote design tokens
-  const p = palette;
-  lines.push(`\n  /* RemNote design tokens */`);
-  lines.push(`  --rn-clr-background-primary:      ${p.base};`);
-  lines.push(`  --rn-clr-background-secondary:    ${p.mantle};`);
-  lines.push(`  --rn-clr-background-tertiary:     ${p.crust};`);
-  lines.push(`  --rn-clr-content-primary:         ${p.text};`);
-  lines.push(`  --rn-clr-border-opaque:           ${p.surface1};`);
-  lines.push(`  --rn-colors-gray-10:              ${p.surface0};`);
-  lines.push(`  --rn-colors-gray-30:              ${p.surface1};`);
-  lines.push(`  --rn-colors-gray-60:              ${p.overlay2};`);
-  lines.push(`  --rn-colors-gray-80:              ${p.text};`);
-  lines.push(`  --rn-colors-gray-90:              ${p.text};`);
-  lines.push(`  --rn-colors-gray-100:             ${p.text};`);
-  lines.push(`  --rn-clr-background-elevation-10: ${p.base};`);
-  lines.push(`  --rn-clr-background-elevation-50: ${p.surface0};`);
-  lines.push(`  --bg-mint-20:             ${p.aqua};`);
-  lines.push(`  --bg-purple-20:           ${p.purple};`);
-  lines.push(`  --bg-cyan-20:             ${p.blue};`);
-  lines.push(`  --bg-yellow-20:           ${p.yellow};`);
-  lines.push(`  --bg-orange-20:           ${p.orange};`);
-  lines.push(`  --bg-red-20:              ${p.red};`);
-  lines.push(`  --highlight-color-red:    ${p.red};`);
-  lines.push(`  --highlight-color-orange: ${p.orange};`);
-  lines.push(`  --highlight-color-yellow: ${p.yellow};`);
-  lines.push(`  --highlight-color-blue:   ${p.blue};`);
-  lines.push(`  --highlight-color-purple: ${p.purple};`);
-  lines.push(`  --highlight-color-green:  ${p.green};`);
-  lines.push(`  --tw-bg-opacity: 0.7;`);
-  lines.push(`  --tw-bg-opacity-highlight: var(--tw-bg-opacity);`);
-  lines.push(`}`);
-  return lines.join("\n");
-}
-
-// ── Unscoped component rules (var() resolves per body class) ──────────────────
-
-const v    = name => `var(--grv-${name})`;
-const vr   = name => `var(--grv-${name}-rgb)`;
-const rgba = (name, alpha) => `rgba(${vr(name)}, ${alpha})`;
-
-function componentCSS() {
   return `
-/* ── Platform ─────────────────────────────────────────────────────────────── */
-.rn-platform { background: ${v("base")} !important; color: ${v("text")} !important; }
+/* ══════════════════════════════════════════════════════════
+   Gruvbox — ${scope === ".dark" ? "Dark" : "Light"} mode
+   ══════════════════════════════════════════════════════════ */
 
-/* ── Design token classes ────────────────────────────────────────────────── */
-.rn-clr-background-primary         { background-color: ${v("base")}     !important; }
-.rn-clr-background-secondary       { background-color: ${v("mantle")}   !important; }
-.rn-clr-background-tertiary        { background-color: ${v("crust")}    !important; }
-.rn-clr-background                 { background-color: ${v("base")}     !important; }
-.rn-clr-background-light-accent    { background-color: ${v("surface1")} !important; }
-.rn-clr-background-accent          { background-color: ${v("accent")}   !important; }
-.rn-clr-background-accent--hovered { background-color: ${v("accent")}   !important; }
-.rn-clr-background-elevation-5,
-.rn-clr-background-elevation-10,
-.rn-clr-background-elevation-15,
-.rn-clr-background-elevation-20    { background: ${v("surface0")} !important; }
-.rn-clr-background-elevation-30,
-.rn-clr-background-elevation-40,
-.rn-clr-background-elevation-50    { background: ${v("surface1")} !important; }
-.rn-clr-content-primary            { color: ${v("text")}     !important; }
-.rn-clr-content-secondary          { color: ${v("subtext1")} !important; }
-.rn-clr-content-tertiary           { color: ${v("overlay2")} !important; }
-.rn-clr-content-on-color           { color: ${v("text")}     !important; }
-.rn-clr-content-accent             { color: ${v("accent")}   !important; }
-.rn-clr-content-state-disabled     { color: ${v("overlay1")} !important; }
-.rn-clr-border-opaque              { border-color: ${v("surface1")} !important; }
-.rn-clr-border-selected            { border-color: ${v("accent")}   !important; }
-.rn-clr-border-light-accent        { border-color: ${v("surface0")} !important; }
-.rn-clr-border-accent              { border-color: ${v("accent")}   !important; }
-
-/* ── Pane / editor ───────────────────────────────────────────────────────── */
-.rn-pane__body        { background: ${v("base")} !important; }
-.rn-pane__top-bar     { background: ${v("base")} !important; border-bottom: 1px solid ${v("surface1")} !important; }
-.rn-editor            { color: ${v("text")} !important; }
-.rn-editor-container  { background: ${v("base")} !important; }
-.rn-document          { color: ${v("text")} !important; }
-.rn-document-wrapper  { background: ${v("base")} !important; }
-.rn-sticky-header     { background: ${v("base")} !important; border-bottom: 1px solid ${v("surface1")} !important; }
-.top-bar-container    { background-color: ${v("base")} !important; }
-.rn-editor__rem__body__text { color: ${v("text")} !important; }
-
-/* ── Navigation bar ──────────────────────────────────────────────────────── */
-.rn-navigation-bar { background: ${v("mantle")} !important; border-bottom: 1px solid ${v("surface1")} !important; }
-
-/* ── Sidebar ─────────────────────────────────────────────────────────────── */
-.rn-sidebar           { background: ${v("crust")} !important; color: ${v("subtext1")} !important; border-right: 1px solid ${v("surface1")} !important; }
-.rn-document-sidebar  { background: ${v("crust")} !important; border-right: 1px solid ${v("surface1")} !important; }
-#document-sidebar     { background-color: ${v("crust")} !important; }
-.rn-sidebar-counter   { color: ${v("overlay2")} !important; }
-.mosaic-tile          { border-color: ${v("surface1")}; }
-
-/* ── Document header ─────────────────────────────────────────────────────── */
-.rn-doc-header { background: ${v("base")} !important; color: ${v("text")} !important; border-bottom: 1px solid ${v("surface1")} !important; }
-.rn-doc-title  { color: ${v("text")} !important; }
-
-/* ── All Notes / folder view ─────────────────────────────────────────────── */
-.rn-all-notes          { background: ${v("base")} !important; color: ${v("text")} !important; }
-.rn-folder-page        { background: ${v("base")} !important; }
-.rn-document-card      { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-.rn-document-card__title { color: ${v("text")} !important; }
-.rn-document-card__body  { color: ${v("subtext1")} !important; }
-.rn-mosaic-card        { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-.rn-mosaic-card__title { color: ${v("text")} !important; }
-.rn-tree-node          { color: ${v("text")}; }
-.rn-tree-node__label   { color: ${v("text")} !important; }
-.rn-rem-text           { color: ${v("text")}; }
-
-/* ── Omnibar / Search ────────────────────────────────────────────────────── */
-div[data-cy="omnibar"]           { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-div[data-omnibar-results="true"] { background: ${v("surface0")} !important; }
-.rn-omnibar   { background: ${v("surface0")} !important; }
-.rn-search    { background: ${v("surface0")} !important; }
-#search-results__result { color: ${v("text")}; margin-top: 4px; margin-bottom: 4px; }
-#search-results__result[data-cmdopt-selected="true"] { background-color: ${rgba("accent", 0.4)}; }
-#search-results__result.rn-clr-background--hovered   { background: ${rgba("text", 0.05)} !important; }
-#search-results__no-results { background: ${v("surface0")} !important; color: ${v("overlay2")} !important; }
-.rich-text-editor__search-results div[data-search-result="search-result-panel"] { background: ${v("surface0")} !important; }
-.rn-ctrl-f { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-
-/* ── Floating toolbar ────────────────────────────────────────────────────── */
-.rn-floating-toolbar          { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-.rn-floating-toolbar-wrapper  { border-color: ${v("surface1")} !important; }
-.rn-background-toolbar        { background-color: ${v("surface0")} !important; }
-
-/* ── Popups / Menus / Dialogs ────────────────────────────────────────────── */
-.rn-popup.popup-menu > .rn-popup__content { background: ${v("surface0")} !important; }
-.rn-popup            { background: ${v("surface0")} !important; }
-.rn-popup-background { background: ${v("surface0")} !important; }
-.rn-popup__content.relative.rn-clr-background-primary.overflow-y-hidden { background-color: ${v("surface0")} !important; }
-.rn-popup__content.relative.rn-clr-background-primary.overflow-y-hidden.overflow-x-hidden { background-color: ${v("base")} !important; }
-.rn-popup__content.relative.rn-clr-background-primary.overflow-y-hidden.overflow-x-hidden #search-results__list { background-color: ${v("surface0")} !important; }
-.rn-menu               { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-.rn-clr-shadow-menu    { background: ${v("surface0")} !important; }
-.rn-clr-shadow-default,
-.rn-clr-shadow-card,
-.rn-clr-shadow-menu,
-.rn-clr-shadow-modal   { box-shadow: 0 2px 8px ${rgba("crust", 0.4)} !important; }
-.remnote-tooltip-container  { background: ${v("surface1")} !important; color: ${v("text")} !important; }
-.pricing-feature-tooltip    { background: ${v("surface1")} !important; color: ${v("text")} !important; }
-.table-background-overlay   { background: ${v("base")} !important; }
-.rn-dialog            { background: ${v("surface0")} !important; }
-.rn-dialog-background { background: ${rgba("crust", 0.5)} !important; }
-.rn-sort-popup        { background: ${v("surface0")} !important; }
-.rn-paste-popup       { background: ${v("surface0")} !important; }
-div[data-cy="selected-text-menu"]        { background: ${v("surface0")} !important; }
-div[data-cy="tag-configure-options"] > div { background: ${v("surface0")} !important; }
-.rn-document-preview  { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-
-/* ── Tags / Portals / References ─────────────────────────────────────────── */
-.rn-tag            { color: ${v("subtext1")} !important; }
-.rn-rem-reference  { color: ${v("accent")} !important; }
-.rn-search-portal  { border-color: ${v("surface1")} !important; }
-.rn-work-in-progress-rem   { background: ${v("surface0")} !important; color: ${v("text")} !important; }
-.rn-work-in-progress-portal { border-color: ${v("surface1")} !important; }
-
-/* ── Bullets / List ──────────────────────────────────────────────────────── */
-.rn-rem-bullet       { color: ${v("overlay1")} !important; }
-.rn-bullet-container { color: ${v("overlay1")} !important; }
-.rn-list-number      { color: ${v("overlay2")} !important; }
-
-/* ── Code blocks ─────────────────────────────────────────────────────────── */
-.rn-code-node { background: ${v("surface0")} !important; color: ${v("text")} !important; border-color: ${v("surface1")} !important; }
-
-/* ── Headings ────────────────────────────────────────────────────────────── */
-.rn-text-heading-large,
-.rn-text-heading-medium,
-.rn-text-heading-small,
-.rn-text-heading-xsmall { color: ${v("text")} !important; }
-
-/* ── Quote ───────────────────────────────────────────────────────────────── */
-.rn-quote         { border-color: ${v("accent")} !important; }
-.rn-quote-inner   { color: ${v("subtext1")} !important; }
-.rn-quote-content { color: ${v("subtext1")} !important; }
-
-/* ── Cards / Dividers / Progress ─────────────────────────────────────────── */
-.rn-card3         { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-.rn-divider       { background: ${v("surface1")} !important; --rn-colors-gray-20: ${v("surface1")}; }
-.rn-editor-divider { background: ${v("surface1")} !important; }
-.rn-progress-bar  { background: ${v("surface0")} !important; }
-
-/* ── Buttons / Switches ──────────────────────────────────────────────────── */
-.rn-button        { color: ${v("text")} !important; background-color: ${v("mantle")} !important; border-color: ${v("surface1")} !important; transition: background-color 0.1s ease-in-out; }
-.rn-button:hover  { background-color: ${v("surface0")} !important; }
-.rn-button--primary,
-.rn-button.rn-button--primary       { color: ${v("crust")} !important; background-color: ${v("accent")} !important; border-color: ${v("accent")} !important; }
-.rn-button--primary:hover,
-.rn-button.rn-button--primary:hover { color: ${v("crust")} !important; background-color: var(--grv-accent-dark) !important; }
-.rn-checkbox      { border-color: ${v("surface1")} !important; }
-.rn-switch        { background: ${v("crust")} !important; box-sizing: content-box; }
-.rn-switch[data-state="checked"] { background-color: ${v("crust")} !important; border-color: ${v("accent")} !important; border-width: 2.1px !important; border-style: solid !important; }
-.rn-switch-handle { background: ${v("surface0")} !important; }
-.rn-settings__link:hover { background-color: ${v("mantle")} !important; border-radius: 4px; }
-.rn-settings__link.rn-clr-content-accent { color: ${v("accent")}; }
-
-/* ── Checkboxes (data-uri can't use CSS vars — kept scoped) ──────────────── */
-.rn-checkbox--unchecked { color: ${v("accent")} !important; background-color: ${v("surface0")} !important; border-color: ${v("overlay0")} !important; }
-
-/* ── Settings ────────────────────────────────────────────────────────────── */
-.rn-settings { background: ${v("base")} !important; }
-
-/* ── Queue / Review ──────────────────────────────────────────────────────── */
-.rn-queue-container  { background: ${v("mantle")} !important; }
-.rn-queue            { background: ${v("base")} !important; }
-.rn-queue-rem        { color: ${v("text")} !important; }
-.rn-flashcard-delimiter { color: ${v("overlay1")} !important; }
-.rn-flashcards-edit,
-.rn-flashcards-home,
-.rn-flashcards-page-container { background: ${v("base")} !important; }
-
-/* ── Deck list / Study ───────────────────────────────────────────────────── */
-.rn-deck-list      { background: ${v("base")} !important; }
-.rn-study-deck-btn { background: ${v("surface0")} !important; color: ${v("text")} !important; }
-
-/* ── PDF viewer ──────────────────────────────────────────────────────────── */
-.rn-pdf-viewer { background: ${v("base")} !important; }
-
-/* ── Tables ──────────────────────────────────────────────────────────────── */
-.rn-table-header   { background: ${v("surface0")} !important; color: ${v("subtext1")} !important; }
-.rn-table-row      { background: ${v("base")} !important; }
-.rn-column-header  { background: ${v("surface0")} !important; }
-
-/* ── Toast / Notifications ───────────────────────────────────────────────── */
-.rn-toast            { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-.rn-toast-container  { background: ${v("surface0")} !important; }
-.rn-notification-banner { background: ${v("mantle")} !important; color: ${v("text")} !important; }
-
-/* ── Plugin sidebar ──────────────────────────────────────────────────────── */
-.rn-plugin-sidebar { background: ${v("mantle")} !important; }
-.rn-plugin         { background: ${v("surface0")} !important; border-color: ${v("surface1")} !important; }
-
-/* ── Cloze ───────────────────────────────────────────────────────────────── */
-.cloze       { background-color: ${rgba("surface2", 0.3)}; border-bottom-color: ${v("accent")}; }
-.cloze:hover { border-bottom-color: var(--grv-accent-dark); }
-.rn-fill-in-blank { border-color: ${v("accent")} !important; }
-.rn-cloze-button  { color: ${v("accent")} !important; }
-
-/* ── Highlight colors ────────────────────────────────────────────────────── */
-.highlight-color--red    { background-color: ${rgba("red",    0.7)}; color: ${v("text")}; }
-.highlight-color--orange { background-color: ${rgba("orange", 0.7)}; color: ${v("text")}; }
-.highlight-color--yellow { background-color: ${rgba("yellow", 0.7)}; color: ${v("text")}; }
-.highlight-color--blue   { background-color: ${rgba("blue",   0.7)}; color: ${v("text")}; }
-.highlight-color--purple { background-color: ${rgba("purple", 0.7)}; color: ${v("text")}; }
-.highlight-color--green  { background-color: ${rgba("green",  0.7)}; color: ${v("text")}; }
-.rn-highlight-reference  { background: ${rgba("yellow", 0.15)} !important; }
-.rn-html-viewer          { background: ${v("base")} !important; }
-.rn-html-highlight       { background: ${rgba("yellow", 0.2)} !important; }
-
-/* ── Links ───────────────────────────────────────────────────────────────── */
-a       { color: ${v("accent")}; }
-a:hover { color: ${v("subtext1")}; }
-.text-blue-60     { color: ${v("accent")} !important; }
-.rn-rem-reference { color: ${v("accent")}; }
-
-/* ── Tab active indicator ────────────────────────────────────────────────── */
-[data-cy-active="true"] { border-bottom-color: ${v("accent")} !important; }
-
-/* ── Hover / selection ───────────────────────────────────────────────────── */
-.rn-clr-background--hovered               { background: ${rgba("text", 0.05)} !important; }
-.hover\\:rn-clr-background--hovered:hover  { background: ${v("mantle")} !important; }
-.hover\\:rn-clr-background-accent--hovered:hover { background: var(--grv-accent-dark) !important; }
-.hover\\:rn-clr-background-light-accent--hovered { background: ${rgba("accent", 1)} !important; color: ${v("mantle")} !important; }
-
-/* ── Learning state icons ────────────────────────────────────────────────── */
-svg[data-icon="learning-state-active"] path       { fill:   ${v("green")}; }
-svg[data-icon="learning-state-paused"] path       { stroke: ${v("overlay0")}; }
-svg[data-icon="learning-state-maintaining"] path  { stroke: ${v("yellow")}; }
-svg[data-icon="learning-state-maintaining"] circle { fill:  ${v("yellow")}; }
-svg[data-icon="learning-state-no-priority"] path  { stroke: ${v("overlay2")}; }
-
-/* ── Scrollbar ───────────────────────────────────────────────────────────── */
-::-webkit-scrollbar       { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: ${v("overlay1")}; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: ${v("overlay2")}; }
-
-/* ── Selection ───────────────────────────────────────────────────────────── */
-::selection { background: ${rgba("accent", 0.35)} !important; }
-`.trim();
+/* RemNote design tokens */
+${s(":root")},
+${scope} {
+  --rn-clr-background-primary:      ${p.base};
+  --rn-clr-background-secondary:    ${p.mantle};
+  --rn-clr-background-tertiary:     ${p.crust};
+  --rn-clr-content-primary:         ${p.text};
+  --rn-clr-border-opaque:           ${p.surface1};
+  --rn-colors-gray-10:              ${p.surface0};
+  --rn-colors-gray-30:              ${p.surface1};
+  --rn-colors-gray-60:              ${p.overlay2};
+  --rn-colors-gray-80:              ${p.text};
+  --rn-colors-gray-90:              ${p.text};
+  --rn-colors-gray-100:             ${p.text};
+  --rn-clr-background-elevation-10: ${p.base};
+  --rn-clr-background-elevation-50: ${p.surface0};
+  --bg-mint-20:             ${p.aqua};
+  --bg-purple-20:           ${p.purple};
+  --bg-cyan-20:             ${p.blue};
+  --bg-yellow-20:           ${p.yellow};
+  --bg-orange-20:           ${p.orange};
+  --bg-red-20:              ${p.red};
+  --highlight-color-red:    ${p.red};
+  --highlight-color-orange: ${p.orange};
+  --highlight-color-yellow: ${p.yellow};
+  --highlight-color-blue:   ${p.blue};
+  --highlight-color-purple: ${p.purple};
+  --highlight-color-green:  ${p.green};
+  --tw-bg-opacity: 0.7;
+  --tw-bg-opacity-highlight: var(--tw-bg-opacity);
 }
 
-// ── Checkbox SVG (can't use CSS vars in url()) — kept scoped ─────────────────
+/* Platform */
+${s(".rn-platform")} { background: ${p.base} !important; color: ${p.text} !important; }
 
-function checkboxCSS(palette, bodyClass) {
-  const hex = palette.accent.replace("#", "%23");
-  return `body${bodyClass} .rn-checkbox--checked { background-color: ${palette.surface0} !important; color: ${palette.accent} !important; border-color: ${palette.accent} !important; background-image: url("data:image/svg+xml,%3Csvg width='22' height='14' viewBox='-2 0 20 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6.5 12.6-6.1-6 2.2-2.2 3.9 4L13.9.9l2.2 2.2-9.6 9.5Z' fill='${hex}' /%3E%3C/svg%3E") !important; }`;
+/* Body-level color so everything inherits */
+${scope} { background-color: ${p.base}; color: ${p.text}; }
+
+/* Design token classes */
+${s(".rn-clr-background-primary")}         { background-color: ${p.base}     !important; }
+${s(".rn-clr-background-secondary")}       { background-color: ${p.mantle}   !important; }
+${s(".rn-clr-background-tertiary")}        { background-color: ${p.crust}    !important; }
+${s(".rn-clr-background")}                 { background-color: ${p.base}     !important; }
+${s(".rn-clr-background-light-accent")}    { background-color: ${p.surface1} !important; }
+${s(".rn-clr-background-accent")}          { background-color: ${p.accent}   !important; }
+${s(".rn-clr-background-accent--hovered")} { background-color: ${p.accent}   !important; }
+${s(".rn-clr-background-elevation-5")},
+${s(".rn-clr-background-elevation-10")},
+${s(".rn-clr-background-elevation-15")},
+${s(".rn-clr-background-elevation-20")}    { background: ${p.surface0} !important; }
+${s(".rn-clr-background-elevation-30")},
+${s(".rn-clr-background-elevation-40")},
+${s(".rn-clr-background-elevation-50")}    { background: ${p.surface1} !important; }
+${s(".rn-clr-content-primary")}            { color: ${p.text}     !important; }
+${s(".rn-clr-content-secondary")}          { color: ${p.subtext1} !important; }
+${s(".rn-clr-content-tertiary")}           { color: ${p.overlay2} !important; }
+${s(".rn-clr-content-on-color")}           { color: ${p.text}     !important; }
+${s(".rn-clr-content-accent")}             { color: ${p.accent}   !important; }
+${s(".rn-clr-content-state-disabled")}     { color: ${p.overlay1} !important; }
+${s(".rn-clr-border-opaque")}              { border-color: ${p.surface1} !important; }
+${s(".rn-clr-border-selected")}            { border-color: ${p.accent}   !important; }
+${s(".rn-clr-border-light-accent")}        { border-color: ${p.surface0} !important; }
+${s(".rn-clr-border-accent")}              { border-color: ${p.accent}   !important; }
+
+/* Pane / editor */
+${s(".rn-pane__body")}       { background: ${p.base} !important; }
+${s(".rn-pane__top-bar")}    { background: ${p.base} !important; border-bottom: 1px solid ${p.surface1} !important; }
+${s(".rn-editor")}           { color: ${p.text} !important; }
+${s(".rn-editor-container")} { background: ${p.base} !important; }
+${s(".rn-document")}         { color: ${p.text} !important; }
+${s(".rn-document-wrapper")} { background: ${p.base} !important; }
+${s(".rn-sticky-header")}    { background: ${p.base} !important; border-bottom: 1px solid ${p.surface1} !important; }
+${s(".top-bar-container")}   { background-color: ${p.base} !important; }
+
+/* Text — match Dracula's approach exactly */
+${s(".rn-editor__rem__body__text")} { color: ${p.text} !important; }
+${s(".rem-text")}                   { color: ${p.text} !important; }
+${s(".rn-rem-text")}                { color: ${p.text} !important; }
+
+/* Navigation bar */
+${s(".rn-navigation-bar")} { background: ${p.mantle} !important; border-bottom: 1px solid ${p.surface1} !important; }
+
+/* Sidebar */
+${s(".rn-sidebar")}          { background: ${p.crust} !important; color: ${p.subtext1} !important; border-right: 1px solid ${p.surface1} !important; }
+${s(".rn-document-sidebar")} { background: ${p.crust} !important; border-right: 1px solid ${p.surface1} !important; }
+${s("#document-sidebar")}    { background-color: ${p.crust} !important; }
+${s(".rn-sidebar-counter")}  { color: ${p.overlay2} !important; }
+${s(".mosaic-tile")}         { border-color: ${p.surface1}; }
+
+/* Document header */
+${s(".rn-doc-header")} { background: ${p.base} !important; color: ${p.text} !important; border-bottom: 1px solid ${p.surface1} !important; }
+${s(".rn-doc-title")}  { color: ${p.text} !important; }
+
+/* All Notes / folder view */
+${s(".rn-all-notes")}        { background: ${p.base} !important; color: ${p.text} !important; }
+${s(".rn-folder-page")}      { background: ${p.base} !important; color: ${p.text} !important; }
+${s(".rn-document-card")}    { background: ${p.surface0} !important; border-color: ${p.surface1} !important; color: ${p.text} !important; }
+${s(".rn-mosaic-card")}      { background: ${p.surface0} !important; border-color: ${p.surface1} !important; color: ${p.text} !important; }
+${s(".rn-tree-node")}        { color: ${p.text} !important; }
+${s(".rn-tree-node__label")} { color: ${p.text} !important; }
+
+/* Omnibar / Search */
+${s("div[data-cy=\"omnibar\"]")}           { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+${s("div[data-omnibar-results=\"true\"]")} { background: ${p.surface0} !important; }
+${s(".rn-omnibar")}   { background: ${p.surface0} !important; }
+${s(".rn-search")}    { background: ${p.surface0} !important; }
+${s("#search-results__result")} { color: ${p.text}; margin-top: 4px; margin-bottom: 4px; }
+${s("#search-results__result[data-cmdopt-selected=\"true\"]")} { background-color: ${rgba(p.accent, 0.4)}; }
+${s("#search-results__result.rn-clr-background--hovered")}    { background: ${rgba(p.text, 0.05)} !important; }
+${s("#search-results__no-results")} { background: ${p.surface0} !important; color: ${p.overlay2} !important; }
+${s(".rich-text-editor__search-results div[data-search-result=\"search-result-panel\"]")} { background: ${p.surface0} !important; }
+${s(".rn-ctrl-f")} { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+
+/* Floating toolbar */
+${s(".rn-floating-toolbar")}         { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+${s(".rn-floating-toolbar-wrapper")} { border-color: ${p.surface1} !important; }
+${s(".rn-background-toolbar")}       { background-color: ${p.surface0} !important; }
+
+/* Popups / Menus */
+${s(".rn-popup.popup-menu > .rn-popup__content")} { background: ${p.surface0} !important; }
+${s(".rn-popup")}            { background: ${p.surface0} !important; }
+${s(".rn-popup-background")} { background: ${p.surface0} !important; }
+${s(".rn-popup__content.relative.rn-clr-background-primary.overflow-y-hidden")} { background-color: ${p.surface0} !important; }
+${s(".rn-popup__content.relative.rn-clr-background-primary.overflow-y-hidden.overflow-x-hidden")} { background-color: ${p.base} !important; }
+${s(".rn-menu")}   { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+${s(".rn-clr-shadow-menu")} { background: ${p.surface0} !important; }
+${s(".rn-clr-shadow-default")},
+${s(".rn-clr-shadow-card")},
+${s(".rn-clr-shadow-menu")},
+${s(".rn-clr-shadow-modal")}   { box-shadow: 0 2px 8px ${rgba(p.crust, 0.4)} !important; }
+${s(".remnote-tooltip-container")} { background: ${p.surface1} !important; color: ${p.text} !important; }
+${s(".pricing-feature-tooltip")}   { background: ${p.surface1} !important; color: ${p.text} !important; }
+${s(".table-background-overlay")}  { background: ${p.base} !important; }
+${s(".rn-dialog")}            { background: ${p.surface0} !important; }
+${s(".rn-dialog-background")} { background: ${rgba(p.crust, 0.5)} !important; }
+${s(".rn-sort-popup")}   { background: ${p.surface0} !important; }
+${s(".rn-paste-popup")}  { background: ${p.surface0} !important; }
+${s("div[data-cy=\"selected-text-menu\"]")} { background: ${p.surface0} !important; }
+${s(".rn-document-preview")} { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+
+/* Tags / References */
+${s(".rn-tag")}           { color: ${p.subtext1} !important; }
+${s(".rn-rem-reference")} { color: ${p.accent}   !important; }
+${s(".rn-search-portal")} { border-color: ${p.surface1} !important; }
+${s(".rn-work-in-progress-rem")} { background: ${p.surface0} !important; color: ${p.text} !important; }
+
+/* Bullets */
+${s(".rn-rem-bullet")}       { color: ${p.overlay1} !important; }
+${s(".rn-bullet-container")} { color: ${p.overlay1} !important; }
+${s(".rn-list-number")}      { color: ${p.overlay2} !important; }
+
+/* Code blocks */
+${s(".rn-code-node")} { background: ${p.surface0} !important; color: ${p.text} !important; border-color: ${p.surface1} !important; }
+
+/* Headings */
+${s(".rn-text-heading-large")},
+${s(".rn-text-heading-medium")},
+${s(".rn-text-heading-small")},
+${s(".rn-text-heading-xsmall")} { color: ${p.text} !important; }
+
+/* Quote */
+${s(".rn-quote")}         { border-color: ${p.accent}   !important; }
+${s(".rn-quote-inner")}   { color:        ${p.subtext1} !important; }
+${s(".rn-quote-content")} { color:        ${p.subtext1} !important; }
+
+/* Cards / Dividers */
+${s(".rn-card3")}         { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+${s(".rn-divider")}       { background: ${p.surface1} !important; }
+${s(".rn-editor-divider")} { background: ${p.surface1} !important; }
+${s(".rn-progress-bar")}  { background: ${p.surface0} !important; }
+
+/* Buttons / Switches */
+${s(".rn-button")}       { color: ${p.text} !important; background-color: ${p.mantle} !important; border-color: ${p.surface1} !important; transition: background-color 0.1s ease-in-out; }
+${s(".rn-button:hover")} { background-color: ${p.surface0} !important; }
+${s(".rn-button--primary")},
+${s(".rn-button.rn-button--primary")}       { color: ${p.crust} !important; background-color: ${p.accent} !important; border-color: ${p.accent} !important; }
+${s(".rn-button--primary:hover")},
+${s(".rn-button.rn-button--primary:hover")} { color: ${p.crust} !important; background-color: ${accentDark} !important; }
+${s(".rn-checkbox")}      { border-color: ${p.surface1} !important; }
+${s(".rn-switch")}        { background: ${p.crust} !important; box-sizing: content-box; }
+${s(".rn-switch[data-state=\"checked\"]")} { background-color: ${p.crust} !important; border-color: ${p.accent} !important; border-width: 2.1px !important; border-style: solid !important; }
+${s(".rn-switch-handle")} { background: ${p.surface0} !important; }
+${s(".rn-settings__link:hover")} { background-color: ${p.mantle} !important; border-radius: 4px; }
+${s(".rn-settings__link.rn-clr-content-accent")} { color: ${p.accent}; }
+
+/* Checkboxes */
+${s(".rn-checkbox--checked")}   { background-color: ${p.surface0} !important; color: ${p.accent} !important; border-color: ${p.accent} !important; background-image: url("data:image/svg+xml,%3Csvg width='22' height='14' viewBox='-2 0 20 14' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6.5 12.6-6.1-6 2.2-2.2 3.9 4L13.9.9l2.2 2.2-9.6 9.5Z' fill='${checkboxAccent}' /%3E%3C/svg%3E") !important; }
+${s(".rn-checkbox--unchecked")} { color: ${p.accent} !important; background-color: ${p.surface0} !important; border-color: ${p.overlay0} !important; }
+
+/* Settings */
+${s(".rn-settings")}  { background: ${p.base} !important; }
+${s(".rn-all-notes")} { background: ${p.base} !important; color: ${p.text} !important; }
+
+/* Queue / Review */
+${s(".rn-queue-container")}  { background: ${p.mantle} !important; }
+${s(".rn-queue")}            { background: ${p.base}   !important; }
+${s(".rn-queue-rem")}        { color:      ${p.text}   !important; }
+${s(".rn-flashcard-delimiter")} { color:   ${p.overlay1} !important; }
+${s(".rn-flashcards-edit")},
+${s(".rn-flashcards-home")},
+${s(".rn-flashcards-page-container")} { background: ${p.base} !important; }
+
+/* Deck / Study */
+${s(".rn-deck-list")}     { background: ${p.base}     !important; }
+${s(".rn-study-deck-btn")} { background: ${p.surface0} !important; color: ${p.text} !important; }
+
+/* PDF viewer */
+${s(".rn-pdf-viewer")} { background: ${p.base} !important; }
+
+/* Tables */
+${s(".rn-table-header")}  { background: ${p.surface0} !important; color: ${p.subtext1} !important; }
+${s(".rn-table-row")}     { background: ${p.base}     !important; }
+${s(".rn-column-header")} { background: ${p.surface0} !important; }
+
+/* Toast */
+${s(".rn-toast")}            { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+${s(".rn-toast-container")}  { background: ${p.surface0} !important; }
+${s(".rn-notification-banner")} { background: ${p.mantle} !important; color: ${p.text} !important; }
+
+/* Plugin sidebar */
+${s(".rn-plugin-sidebar")} { background: ${p.mantle}   !important; }
+${s(".rn-plugin")}         { background: ${p.surface0} !important; border-color: ${p.surface1} !important; }
+
+/* Cloze */
+${s(".cloze")}       { background-color: ${rgba(p.surface2, 0.3)}; border-bottom-color: ${p.accent}; }
+${s(".cloze:hover")} { border-bottom-color: ${accentDark}; }
+${s(".rn-fill-in-blank")} { border-color: ${p.accent} !important; }
+${s(".rn-cloze-button")}  { color:        ${p.accent} !important; }
+
+/* Highlights */
+${s(".highlight-color--red")}    { background-color: ${rgba(p.red,    0.7)}; color: ${p.text}; }
+${s(".highlight-color--orange")} { background-color: ${rgba(p.orange, 0.7)}; color: ${p.text}; }
+${s(".highlight-color--yellow")} { background-color: ${rgba(p.yellow, 0.7)}; color: ${p.text}; }
+${s(".highlight-color--blue")}   { background-color: ${rgba(p.blue,   0.7)}; color: ${p.text}; }
+${s(".highlight-color--purple")} { background-color: ${rgba(p.purple, 0.7)}; color: ${p.text}; }
+${s(".highlight-color--green")}  { background-color: ${rgba(p.green,  0.7)}; color: ${p.text}; }
+${s(".rn-highlight-reference")}  { background: ${rgba(p.yellow, 0.15)} !important; }
+${s(".rn-html-viewer")}   { background: ${p.base} !important; }
+${s(".rn-html-highlight")} { background: ${rgba(p.yellow, 0.2)} !important; }
+
+/* Links */
+${s("a")}       { color: ${p.accent}; }
+${s("a:hover")} { color: ${p.subtext1}; }
+${s(".text-blue-60")}     { color: ${p.accent} !important; }
+${s(".rn-rem-reference")} { color: ${p.accent}; }
+
+/* Tab active indicator */
+${s("[data-cy-active=\"true\"]")} { border-bottom-color: ${p.accent} !important; }
+
+/* Hover */
+${s(".rn-clr-background--hovered")}               { background: ${rgba(p.text, 0.05)} !important; }
+${s(".hover\\:rn-clr-background--hovered:hover")} { background: ${p.mantle} !important; }
+${s(".hover\\:rn-clr-background-accent--hovered:hover")} { background: ${accentDark} !important; }
+
+/* Learning state icons */
+${s("svg[data-icon=\"learning-state-active\"] path")}      { fill:   ${p.green}; }
+${s("svg[data-icon=\"learning-state-paused\"] path")}      { stroke: ${p.overlay0}; }
+${s("svg[data-icon=\"learning-state-maintaining\"] path")} { stroke: ${p.yellow}; }
+${s("svg[data-icon=\"learning-state-maintaining\"] circle")} { fill: ${p.yellow}; }
+${s("svg[data-icon=\"learning-state-no-priority\"] path")} { stroke: ${p.overlay2}; }
+
+/* Scrollbar */
+${s("::-webkit-scrollbar")}       { width: 8px; height: 8px; }
+${s("::-webkit-scrollbar-track")} { background: transparent; }
+${s("::-webkit-scrollbar-thumb")} { background: ${p.overlay1}; border-radius: 4px; }
+${s("::-webkit-scrollbar-thumb:hover")} { background: ${p.overlay2}; }
+
+/* Selection */
+${scope}::selection,
+${s("*::selection")} { background: ${rgba(p.accent, 0.35)} !important; }
+`.trim();
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -405,14 +371,9 @@ function main() {
     ` * Palette: https://github.com/morhetz/gruvbox`,
     ` */`,
     "",
-    cssVarBlock(".dark",  DARK),
+    themeCSS(DARK,  ".dark"),
     "",
-    cssVarBlock(".light", LIGHT),
-    "",
-    componentCSS(),
-    "",
-    checkboxCSS(DARK,  ".dark"),
-    checkboxCSS(LIGHT, ".light"),
+    themeCSS(LIGHT, ".light"),
     "",
   ].join("\n");
 
