@@ -4,6 +4,7 @@
  */
 
 :root {
+    /* Gruvbox palette */
     --grv-bg:        #282828;
     --grv-bg-hard:   #1d2021;
     --grv-bg1:       #3c3836;
@@ -20,6 +21,46 @@
     --grv-purple:    #d3869b;
     --grv-aqua:      #8ec07c;
     --grv-accent:    #fabd2f;
+
+    /* RemNote internal design tokens — override so selected/active states
+       also use Gruvbox colors instead of RemNote's default light palette */
+    --rn-clr-background-primary:         #282828;
+    --rn-clr-background-secondary:       #3c3836;
+    --rn-clr-background-tertiary:        #1d2021;
+    --rn-clr-background-light-accent:    #504945;
+    --rn-clr-background-accent:          #fabd2f;
+    --rn-clr-content-primary:            #ebdbb2;
+    --rn-clr-content-secondary:          #d5c4a1;
+    --rn-clr-content-tertiary:           #928374;
+    --rn-clr-border-opaque:              #504945;
+    --rn-colors-gray-10:                 #3c3836;
+    --rn-colors-gray-20:                 #3c3836;
+    --rn-colors-gray-30:                 #504945;
+    --rn-colors-gray-40:                 #504945;
+    --rn-colors-gray-50:                 #665c54;
+    --rn-colors-gray-60:                 #928374;
+    --rn-colors-gray-70:                 #bdae93;
+    --rn-colors-gray-80:                 #ebdbb2;
+    --rn-colors-gray-90:                 #ebdbb2;
+    --rn-colors-gray-100:                #ebdbb2;
+    --rn-clr-background-elevation-5:     #3c3836;
+    --rn-clr-background-elevation-10:    #282828;
+    --rn-clr-background-elevation-15:    #3c3836;
+    --rn-clr-background-elevation-20:    #3c3836;
+    --rn-clr-background-elevation-30:    #504945;
+    --rn-clr-background-elevation-40:    #504945;
+    --rn-clr-background-elevation-50:    #3c3836;
+    --rn-colors-primary-0:               #fabd2f;
+    --rn-colors-primary-10:              #fabd2f;
+    --rn-colors-primary-20:              #fabd2f;
+    --rn-colors-primary-30:              #fabd2f;
+    --rn-colors-primary-40:              #fabd2f;
+    --rn-colors-primary-50:              #fabd2f;
+    --rn-colors-primary-60:              #fabd2f;
+    --rn-colors-primary-70:              #fabd2f;
+    --rn-colors-primary-80:              #fabd2f;
+    --rn-colors-primary-90:              #fabd2f;
+    --rn-colors-primary-100:             #fabd2f;
 }
 
 /* ── Backgrounds ─────────────────────────────────────────────────────────── */
