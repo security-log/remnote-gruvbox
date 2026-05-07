@@ -114,7 +114,10 @@ function darken(hex, pct) {
 
 // Build a :root body.dark / :root body.light CSS variable block
 function cssVarBlock(bodyClass, palette) {
-  const lines = [`body${bodyClass} {`];
+  const lines = [`body${bodyClass} {`,
+    `  color:      ${palette.text};`,
+    `  background: ${palette.base};`,
+  ];
   for (const [name, hex] of Object.entries(palette)) {
     const [r, g, b] = hexToRgb(hex);
     lines.push(`  --grv-${name}:     ${hex};`);

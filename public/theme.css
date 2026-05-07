@@ -4,6 +4,8 @@
  */
 
 body.dark {
+  color:      #ebdbb2;
+  background: #282828;
   --grv-base:     #282828;
   --grv-base-rgb: 40, 40, 40;
   --grv-base-hsl: hsl(0, 0%, 16%);
@@ -96,6 +98,8 @@ body.dark {
 }
 
 body.light {
+  color:      #282828;
+  background: #fbf1c7;
   --grv-base:     #fbf1c7;
   --grv-base-rgb: 251, 241, 199;
   --grv-base-hsl: hsl(48, 87%, 88%);
