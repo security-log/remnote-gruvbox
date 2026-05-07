@@ -5,7 +5,7 @@
   "scripts": {
     "start": "webpack serve",
     "build:theme": "node scripts/build-theme.js",
-    "build": "node scripts/build-theme.js && cd public && bestzip ../dist.zip manifest.json theme.css theme.less && cd .. && zip dist.zip README.md"
+    "build": "cd public && bestzip ../dist.zip manifest.json theme.css && cd .. && zip dist.zip README.md"
   },
   "dependencies": {
     "@remnote/plugin-sdk": "0.0.46",
